@@ -2,13 +2,16 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
+#include <fstream>
 
-#include "shaders/shaders.h"
-#include "buffer_objects/buffer_objects.h"
+#include "shaders.h"
+#include "buffer_objects.h"
+#include "transformation.h"
+#include "tesseract.h"
 
 // Size of window
-#define WINDOW_WIDTH 450
-#define WINDOW_HEIGHT 450
+#define WINDOW_WIDTH 600
+#define WINDOW_HEIGHT 600
 
 // Callback function GLFW
 void sizeCallback(GLFWwindow* window, int width, int height);
@@ -57,45 +60,57 @@ int main()
 	glfwSetFramebufferSizeCallback(window, sizeCallback);
 
 	// Load shaders for color rendering
-	vertex_shader colorVertexShader;
+	vertex_shader color_vertex_shader;
 	string path = COLOR_SHADER_PATH + (string)"vertex_shader.glsl";
-	loadShader(path.c_str(), &colorVertexShader);
-	fragment_shader colorFragmentShader;
+	loadShader(path.c_str(), &color_vertex_shader);
+	fragment_shader color_fragment_shader;
 	path = COLOR_SHADER_PATH + (string)"fragment_shader.glsl";
-	loadShader(path.c_str(), &colorFragmentShader);
+	loadShader(path.c_str(), &color_fragment_shader);
 
 	// Create shader program for color rendering
-	shader_program colorShaderProgram(colorVertexShader, colorFragmentShader);
+	shader_program color_shader_program(color_vertex_shader, color_fragment_shader);
 
 	// Using shader program
-	colorShaderProgram.use();
+	color_shader_program.use();
+
+	// Start transformation
+	loadIdentity(color_shader_program.getID());
+	standartPerspectTransform(color_shader_program.getID());
 
 	/////////////////////////////////////////////////////////////////////////////////////////////////
 
-	GLfloat coords[9] = {
-		-0.5f, -0.3f, 0.0f,
-		0.5f, -0.3f, 0.0f,
-		0.0f, 0.7f, 0.0f
-	};
-
-	GLfloat colors[9] = {
+	GLfloat values[12] = {
+		0.0f, 0.0f, 0.0f,
 		1.0f, 0.0f, 0.0f,
 		0.0f, 1.0f, 0.0f,
 		0.0f, 0.0f, 1.0f
 	};
 
-	GLuint indexes[3] = { 0, 1, 2 };
+	GLuint indexes[6] = {
+		0, 1, 0, 2, 0, 3
+	};
 
-	vbo coordsVBO(coords, 9, 3);
-	vbo colorsVBO(colors, 9, 3);
-	vao VAO;
-	VAO.addVBO(coordsVBO);
-	VAO.addVBO(colorsVBO);
-	ebo EBO(VAO, indexes, 3);
+	vbo lines_coords(values, 12, 3);
+	vbo lines_colors(values, 12, 3);
+	vao lines_data;
+	lines_data.addVBO(lines_coords);
+	lines_data.addVBO(lines_colors);
+	ebo lines(lines_data, indexes, 6);
+	
+	tesseract t;
+	t.print4D();
+	t.sampling(1);
+	cout << endl << endl;
+	t.print3D();
+
+	camera c;
+	c.setPos(1, 1, 1);
 
 	/////////////////////////////////////////////////////////////////////////////////////////////////
 
 	// Rendering
+	float thetta = 0;
+
 	while (!glfwWindowShouldClose(window))
 	{
 		processKeyboardEvents(window);
@@ -103,13 +118,23 @@ int main()
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 
-		EBO.draw(GL_TRIANGLES);
+		//float x = sin(thetta / 100) * 3;
+		//float y = cos(thetta / 100) * 3;
+		//c.setPos(cumX, cumY, 0.0f);
+		//c.setTarget(0.0f, 0.0f, 0.0f);
+		//c.setUp(0.0f, 0.0f, 1.0f);
+		c.dynamic(window);
+		c.update(color_shader_program.getID());
+
+		lines.draw(GL_LINES);
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
+
+		thetta += 0.01;
 	}
 
-	// GLFW resources clear
+	// Resources clear
 	glfwTerminate();
 	return 0;
 }
